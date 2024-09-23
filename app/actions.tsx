@@ -9,7 +9,8 @@ export async function continueConversation(messages: CoreMessage[]) {
     model: openai('gpt-4-turbo'),
     messages,
   });
+  const data = {test: 'hello'};
 
   const stream = createStreamableValue(result.textStream);
-  return stream.value;
+  return {message: stream.value, data};
 }
