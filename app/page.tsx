@@ -1,59 +1,56 @@
 'use client';
 
-import { type CoreMessage } from 'ai';
 import { useState } from 'react';
-import { continueConversation } from './actions';
-import { readStreamableValue } from 'ai/rsc';
+import { ClientMessage } from './actions';
+import { useActions, useUIState } from 'ai/rsc';
+import { generateId } from 'ai';
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
 
-export default function Chat() {
-  const [messages, setMessages] = useState<CoreMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [data, setData] = useState<any>();
+export default function Home() {
+  const [input, setInput] = useState<string>('');
+  const [conversation, setConversation] = useUIState();
+  const { continueConversation } = useActions();
+
   return (
-    <div className="flex flex-col w-full max-w-md py-24 mx-auto stretch">
-      {data && <pre>{JSON.stringify(data, null, 2)}</pre>}
-      {messages.map((m, i) => (
-        <div key={i} className="whitespace-pre-wrap">
-          {m.role === 'user' ? 'User: ' : 'AI: '}
-          {m.content as string}
-        </div>
-      ))}
+    <div className="flex flex-col justify-around items-center h-full">
+      <div>
+        {conversation.map((message: ClientMessage) => (
+          <div key={message.id}>
+            {message.role}: {message.display}
+          </div>
+        ))}
+      </div>
 
-      <form
-        onSubmit={async e => {
-          e.preventDefault();
-          const newMessages: CoreMessage[] = [
-            ...messages,
-            { content: input, role: 'user' },
-          ];
-
-          setMessages(newMessages);
-          setInput('');
-
-          const result = await continueConversation(newMessages);
-          setData(result.data)
-
-          for await (const content of readStreamableValue(result.message)) {
-            setMessages([
-              ...newMessages,
-              {
-                role: 'assistant',
-                content: content as string,
-              },
-            ]);
-          }
-        }}
-      >
+      <div>
         <input
-          className="fixed bottom-0 w-full max-w-md p-2 mb-8 border border-gray-300 rounded shadow-xl text-black"
+          className="border rounded m-2"
+          type="text"
           value={input}
-          placeholder="Say something..."
-          onChange={e => setInput(e.target.value)}
+          onChange={event => {
+            setInput(event.target.value);
+          }}
         />
-      </form>
+        <button
+          onClick={async () => {
+            setConversation((currentConversation: ClientMessage[]) => [
+              ...currentConversation,
+              { id: generateId(), role: 'user', display: input },
+            ]);
+
+            const message = await continueConversation(input);
+
+            setConversation((currentConversation: ClientMessage[]) => [
+              ...currentConversation,
+              message,
+            ]);
+            setInput('')
+          }}
+        >
+          Send Message
+        </button>
+      </div>
     </div>
   );
 }
